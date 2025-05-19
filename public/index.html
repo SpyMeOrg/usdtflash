@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>برنامج محاكاة USDT Flash</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>برنامج محاكاة USDT Flash</h1>
+            <p class="warning">⚠️ هذا البرنامج للأغراض التعليمية فقط ⚠️</p>
+        </header>
+
+        <div class="network-info">
+            <div id="network-status">جاري الاتصال بالشبكة...</div>
+            <div id="wallet-status">المحفظة: غير متصلة</div>
+            <div class="wallet-actions">
+                <button id="change-wallet-btn" class="secondary-btn">تغيير المحفظة</button>
+            </div>
+            <div class="network-selector">
+                <label for="network-select">اختر الشبكة:</label>
+                <select id="network-select">
+                    <optgroup label="شبكات الاختبار (رسوم منخفضة جدًا)">
+                        <option value="sepolia" selected>Sepolia (Ethereum Testnet)</option>
+                        <option value="bsc_testnet">BSC Testnet (BNB Smart Chain)</option>
+                        <option value="mumbai">Mumbai (Polygon Testnet)</option>
+                    </optgroup>
+                    <optgroup label="الشبكات الرئيسية (رسوم منخفضة)">
+                        <option value="bsc">BNB Smart Chain (رسوم منخفضة جدًا)</option>
+                        <option value="polygon">Polygon (رسوم منخفضة جدًا)</option>
+                        <option value="arbitrum">Arbitrum (رسوم منخفضة)</option>
+                        <option value="optimism">Optimism (رسوم منخفضة)</option>
+                        <option value="base">Base (رسوم منخفضة)</option>
+                    </optgroup>
+                    <optgroup label="الشبكة الرئيسية (رسوم عالية)">
+                        <option value="mainnet">Ethereum Mainnet (رسوم عالية)</option>
+                    </optgroup>
+                </select>
+            </div>
+        </div>
+
+        <div class="card" id="deploy-card">
+            <h2>1. نشر العقد المزيف</h2>
+            <p>قم بنشر عقد USDT المزيف على شبكة الاختبار</p>
+
+            <div class="tabs">
+                <button class="tab-btn active" id="deploy-tab">نشر عقد جديد</button>
+                <button class="tab-btn" id="connect-tab">الاتصال بعقد موجود</button>
+            </div>
+
+            <div id="deploy-form" class="tab-content active">
+                <div class="button-group">
+                    <button id="deploy-btn" class="primary-btn">نشر العقد</button>
+                    <button id="skip-deploy-btn" class="secondary-btn">تجاوز النشر (للاختبار فقط)</button>
+                </div>
+            </div>
+
+            <div id="connect-form" class="tab-content">
+                <div class="form-group">
+                    <label for="contract-address">عنوان العقد الموجود:</label>
+                    <input type="text" id="contract-address" placeholder="0x..." dir="ltr">
+                </div>
+                <button id="connect-btn" class="primary-btn">الاتصال بالعقد</button>
+            </div>
+
+            <div id="deploy-result" class="result-box"></div>
+        </div>
+
+        <div class="card" id="distribute-card">
+            <h2>2. إرسال التوكنات المزيفة</h2>
+
+            <div class="tabs">
+                <button class="tab-btn active" id="single-tab">إرسال لعنوان واحد</button>
+                <button class="tab-btn" id="multi-tab">إرسال لعدة عناوين</button>
+            </div>
+
+            <div id="single-form" class="tab-content active">
+                <div class="form-group">
+                    <label for="recipient-address">عنوان المحفظة المستهدفة:</label>
+                    <input type="text" id="recipient-address" placeholder="0x..." dir="ltr">
+                </div>
+                <div class="form-group">
+                    <label for="token-amount">المبلغ المراد إرساله (USDT):</label>
+                    <input type="number" id="token-amount" placeholder="1000" min="1" value="1000">
+                </div>
+                <button id="send-btn" class="primary-btn" disabled>إرسال التوكنات</button>
+            </div>
+
+            <div id="multi-form" class="tab-content">
+                <div class="form-group">
+                    <label for="multi-recipients">العناوين المستهدفة (عنوان واحد في كل سطر):</label>
+                    <textarea id="multi-recipients" placeholder="0x...&#10;0x...&#10;0x..." dir="ltr" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="multi-amount">المبلغ لكل عنوان (USDT):</label>
+                    <input type="number" id="multi-amount" placeholder="1000" min="1" value="1000">
+                </div>
+                <button id="multi-send-btn" class="primary-btn" disabled>إرسال للجميع</button>
+            </div>
+
+            <div id="send-result" class="result-box"></div>
+        </div>
+
+        <div class="card" id="transactions-card">
+            <h2>3. سجل المعاملات</h2>
+            <div class="button-group">
+                <button id="export-btn" class="secondary-btn">تصدير السجل</button>
+                <button id="import-btn" class="secondary-btn">استيراد السجل</button>
+                <button id="clear-btn" class="secondary-btn">مسح السجل</button>
+                <input type="file" id="import-file" accept=".json" style="display: none;">
+            </div>
+            <div id="transactions-list" class="result-box">
+                <p>لا توجد معاملات حتى الآن</p>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>معلومات هامة</h3>
+            <p>يمكنك استخدام الشبكات التالية لتوفير رسوم المعاملات:</p>
+
+            <h4>شبكات الاختبار (مجانية تقريبًا):</h4>
+            <ul>
+                <li><strong>Sepolia:</strong> شبكة اختبار Ethereum - <a href="https://sepoliafaucet.com/" target="_blank">الحصول على ETH مجاني</a></li>
+                <li><strong>BSC Testnet:</strong> شبكة اختبار BNB Smart Chain - <a href="https://testnet.bnbchain.org/faucet-smart" target="_blank">الحصول على BNB مجاني</a></li>
+                <li><strong>Mumbai:</strong> شبكة اختبار Polygon - <a href="https://mumbaifaucet.com/" target="_blank">الحصول على MATIC مجاني</a></li>
+            </ul>
+
+            <h4>الشبكات الرئيسية (رسوم منخفضة):</h4>
+            <ul>
+                <li><strong>BNB Smart Chain:</strong> رسوم منخفضة جدًا (أقل من $0.01 للمعاملة)</li>
+                <li><strong>Polygon:</strong> رسوم منخفضة جدًا (أقل من $0.01 للمعاملة)</li>
+                <li><strong>Arbitrum:</strong> رسوم منخفضة (حوالي $0.1 للمعاملة)</li>
+                <li><strong>Optimism:</strong> رسوم منخفضة (حوالي $0.05 للمعاملة)</li>
+                <li><strong>Base:</strong> رسوم منخفضة (حوالي $0.02 للمعاملة)</li>
+            </ul>
+
+            <h4>ملاحظات هامة:</h4>
+            <ul>
+                <li>يجب أن يكون لديك رصيد كافٍ من BNB في محفظتك لدفع رسوم المعاملات على شبكة BNB Smart Chain.</li>
+                <li>للحصول على BNB للاختبار على شبكة BSC Testnet، استخدم <a href="https://testnet.bnbchain.org/faucet-smart" target="_blank">صنبور BSC Testnet</a>.</li>
+                <li>إذا واجهت خطأ "Internal JSON-RPC error"، فهذا يعني غالبًا أنه ليس لديك رصيد كافٍ من BNB.</li>
+            </ul>
+
+            <p>عنوان USDT الرسمي على الشبكة الرئيسية: <span dir="ltr">0xdAC17F958D2ee523a2206206994597C13D831ec7</span></p>
+            <p class="warning">⚠️ تذكر: هذا البرنامج للأغراض التعليمية فقط ولا يجب استخدامه في أي نشاط احتيالي.</p>
+        </div>
+    </div>
+
+    <footer>
+        <p>تم إنشاء هذا البرنامج للأغراض التعليمية فقط. لا تستخدمه في أي نشاط احتيالي.</p>
+    </footer>
+
+    <script src="ethers.min.js"></script>
+    <script src="wallet-icons.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
