@@ -604,29 +604,71 @@ async function connectToSpecificWallet(walletName) {
             console.log("تم اكتشاف محافظ متعددة:", window.ethereum.providers);
             availableProviders = window.ethereum.providers;
 
-            // البحث عن المزود المطلوب في قائمة المزودين
-            for (const provider of window.ethereum.providers) {
-                console.log("فحص المزود:", provider);
-
-                // طباعة جميع خصائص المزود للتشخيص
+            // طباعة معلومات مفصلة عن جميع المزودين المتاحين
+            console.log("معلومات مفصلة عن المزودين المتاحين:");
+            window.ethereum.providers.forEach((provider, index) => {
+                console.log(`المزود ${index}:`, provider);
                 for (const key in provider) {
                     if (key.startsWith('is')) {
                         console.log(`- الخاصية ${key}:`, provider[key]);
                     }
                 }
+            });
 
-                if (walletName === 'MetaMask' && provider.isMetaMask && !provider.isTrust && !provider.isTrustWallet) {
-                    console.log("تم العثور على MetaMask:", provider);
-                    selectedProvider = provider;
-                    break;
-                } else if (walletName === 'Trust Wallet' && (provider.isTrust || provider.isTrustWallet)) {
-                    console.log("تم العثور على Trust Wallet:", provider);
-                    selectedProvider = provider;
-                    break;
-                } else if (walletName === 'Coinbase Wallet' && (provider.isCoinbaseWallet || provider.isCoinbaseBrowser)) {
-                    console.log("تم العثور على Coinbase Wallet:", provider);
-                    selectedProvider = provider;
-                    break;
+            // البحث عن المزود المطلوب في قائمة المزودين
+            if (walletName === 'MetaMask') {
+                // البحث عن MetaMask بشكل دقيق
+                for (const provider of window.ethereum.providers) {
+                    // التحقق من أنه MetaMask وليس Trust Wallet
+                    if (provider.isMetaMask && !provider.isTrust && !provider.isTrustWallet) {
+                        console.log("تم العثور على MetaMask:", provider);
+                        selectedProvider = provider;
+                        break;
+                    }
+                }
+
+                // إذا لم يتم العثور على MetaMask، ابحث عن أي مزود يدعي أنه MetaMask
+                if (!selectedProvider) {
+                    for (const provider of window.ethereum.providers) {
+                        if (provider.isMetaMask) {
+                            console.log("تم العثور على مزود يدعي أنه MetaMask:", provider);
+                            selectedProvider = provider;
+                            break;
+                        }
+                    }
+                }
+            } else if (walletName === 'Trust Wallet') {
+                // البحث عن Trust Wallet
+                for (const provider of window.ethereum.providers) {
+                    if (provider.isTrust || provider.isTrustWallet) {
+                        console.log("تم العثور على Trust Wallet:", provider);
+                        selectedProvider = provider;
+                        break;
+                    }
+                }
+            } else if (walletName === 'Coinbase Wallet') {
+                // البحث عن Coinbase Wallet
+                for (const provider of window.ethereum.providers) {
+                    if (provider.isCoinbaseWallet || provider.isCoinbaseBrowser) {
+                        console.log("تم العثور على Coinbase Wallet:", provider);
+                        selectedProvider = provider;
+                        break;
+                    }
+                }
+            } else {
+                // البحث عن المحفظة بالاسم
+                for (const provider of window.ethereum.providers) {
+                    // محاولة مطابقة الاسم مع خصائص المزود
+                    let found = false;
+                    for (const key in provider) {
+                        if (key.startsWith('is') && key.toLowerCase().includes(walletName.toLowerCase())) {
+                            console.log(`تم العثور على ${walletName} من خلال الخاصية ${key}:`, provider);
+                            selectedProvider = provider;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) break;
                 }
             }
         } else if (window.ethereum) {
@@ -634,23 +676,30 @@ async function connectToSpecificWallet(walletName) {
             availableProviders = [window.ethereum];
 
             // طباعة جميع خصائص المزود للتشخيص
+            console.log("خصائص المزود الوحيد:");
             for (const key in window.ethereum) {
                 if (key.startsWith('is')) {
                     console.log(`- الخاصية ${key}:`, window.ethereum[key]);
                 }
             }
 
-            // في حالة وجود مزود واحد فقط
-            if (walletName === 'MetaMask' && window.ethereum.isMetaMask && !window.ethereum.isTrust && !window.ethereum.isTrustWallet) {
-                console.log("تم العثور على MetaMask (مزود واحد)");
-                selectedProvider = window.ethereum;
-            } else if (walletName === 'Trust Wallet' && (window.ethereum.isTrust || window.ethereum.isTrustWallet)) {
-                console.log("تم العثور على Trust Wallet (مزود واحد)");
-                selectedProvider = window.ethereum;
+            // في حالة وجود مزود واحد فقط، استخدمه بغض النظر عن نوعه
+            console.log("استخدام المزود الوحيد المتاح");
+            selectedProvider = window.ethereum;
+
+            // تحديث اسم المحفظة بناءً على خصائص المزود
+            if (window.ethereum.isMetaMask && !window.ethereum.isTrust && !window.ethereum.isTrustWallet) {
+                console.log("المزود الوحيد هو MetaMask");
+                walletName = 'MetaMask';
+            } else if (window.ethereum.isTrust || window.ethereum.isTrustWallet) {
+                console.log("المزود الوحيد هو Trust Wallet");
+                walletName = 'Trust Wallet';
+            } else if (window.ethereum.isCoinbaseWallet || window.ethereum.isCoinbaseBrowser) {
+                console.log("المزود الوحيد هو Coinbase Wallet");
+                walletName = 'Coinbase Wallet';
             } else {
-                // استخدام المزود الافتراضي
-                console.log("استخدام المزود الافتراضي");
-                selectedProvider = window.ethereum;
+                console.log("المزود الوحيد غير معروف، استخدام الاسم الافتراضي");
+                walletName = 'محفظة الويب';
             }
         }
 
@@ -665,6 +714,7 @@ async function connectToSpecificWallet(walletName) {
                 <div id="available-wallets" style="margin-top: 10px;"></div>
                 <div style="margin-top: 10px;">
                     <button class="primary-btn" onclick="init()">محاولة مرة أخرى</button>
+                    <button class="secondary-btn" onclick="window.location.reload()">إعادة تحميل الصفحة</button>
                 </div>
             `, 'error');
 
@@ -675,12 +725,16 @@ async function connectToSpecificWallet(walletName) {
                     const walletInfo = document.createElement('div');
                     walletInfo.style.margin = '5px 0';
 
-                    let walletName = 'محفظة غير معروفة';
-                    if (provider.isMetaMask) walletName = 'MetaMask';
-                    else if (provider.isTrust || provider.isTrustWallet) walletName = 'Trust Wallet';
-                    else if (provider.isCoinbaseWallet) walletName = 'Coinbase Wallet';
+                    let detectedWalletName = 'محفظة غير معروفة';
+                    if (provider.isMetaMask && !provider.isTrust && !provider.isTrustWallet) detectedWalletName = 'MetaMask';
+                    else if (provider.isTrust || provider.isTrustWallet) detectedWalletName = 'Trust Wallet';
+                    else if (provider.isCoinbaseWallet || provider.isCoinbaseBrowser) detectedWalletName = 'Coinbase Wallet';
+                    else if (provider.isTokenPocket) detectedWalletName = 'TokenPocket';
+                    else if (provider.isImToken) detectedWalletName = 'imToken';
+                    else if (provider.isMathWallet) detectedWalletName = 'MathWallet';
+                    else if (provider.isOKExWallet || provider.isOKXWallet) detectedWalletName = 'OKX Wallet';
 
-                    walletInfo.textContent = `- ${walletName}`;
+                    walletInfo.textContent = `- ${detectedWalletName}`;
                     availableWalletsDiv.appendChild(walletInfo);
                 }
             }
@@ -689,7 +743,9 @@ async function connectToSpecificWallet(walletName) {
         }
 
         // طلب الاتصال بالمحفظة
+        console.log("طلب الاتصال بالمحفظة:", selectedProvider);
         const accounts = await selectedProvider.request({ method: 'eth_requestAccounts' });
+        console.log("الحسابات المتاحة:", accounts);
 
         if (accounts.length === 0) {
             updateNetworkStatus('خطأ: لم يتم اختيار أي حساب', 'error');
@@ -701,6 +757,7 @@ async function connectToSpecificWallet(walletName) {
         preferredWallet = walletName;
 
         // إنشاء مزود الإيثيريوم
+        console.log("إنشاء مزود الإيثيريوم باستخدام:", selectedProvider);
         provider = new ethers.providers.Web3Provider(selectedProvider);
 
         // إضافة مستمعي الأحداث
@@ -709,16 +766,20 @@ async function connectToSpecificWallet(walletName) {
 
         // الحصول على الموقع
         signer = provider.getSigner();
+        console.log("تم الحصول على الموقع:", signer);
 
         // الحصول على عنوان المحفظة
         const address = await signer.getAddress();
+        console.log("عنوان المحفظة:", address);
         updateWalletStatus(`${walletName}: ${formatAddress(address)}`);
 
         // الحصول على معلومات الشبكة
         const network = await provider.getNetwork();
+        console.log("معلومات الشبكة:", network);
 
         // التحقق من الشبكة
         const networkInfo = getNetworkInfoByChainId(network.chainId);
+        console.log("معلومات الشبكة المستخرجة:", networkInfo);
 
         if (networkInfo) {
             // تحديث الشبكة المحددة
@@ -735,6 +796,12 @@ async function connectToSpecificWallet(walletName) {
 
             // تفعيل الأزرار
             deployBtn.disabled = false;
+
+            // استعادة العقد المحفوظ إذا كان موجودًا
+            if (savedContractAddress && savedContractNetwork) {
+                console.log("محاولة استعادة العقد المحفوظ:", savedContractAddress, "على شبكة", savedContractNetwork);
+                await restoreSavedContract();
+            }
         } else {
             updateNetworkStatus(`
                 <div class="error">خطأ: الشبكة الحالية غير مدعومة (${network.name})</div>
@@ -750,7 +817,7 @@ async function connectToSpecificWallet(walletName) {
             document.getElementById('switch-network-container').appendChild(switchButton);
         }
     } catch (error) {
-        console.error(error);
+        console.error("خطأ في الاتصال بالمحفظة:", error);
         if (error.code === 4001) {
             // المستخدم رفض الاتصال
             updateNetworkStatus(`
@@ -758,6 +825,7 @@ async function connectToSpecificWallet(walletName) {
                 <div>يرجى الموافقة على الاتصال بالمحفظة للمتابعة</div>
                 <div style="margin-top: 10px;">
                     <button class="primary-btn" onclick="init()">محاولة مرة أخرى</button>
+                    <button class="secondary-btn" onclick="window.location.reload()">إعادة تحميل الصفحة</button>
                 </div>
             `, 'error');
         } else {
@@ -765,6 +833,7 @@ async function connectToSpecificWallet(walletName) {
                 <div class="error">خطأ: ${error.message}</div>
                 <div style="margin-top: 10px;">
                     <button class="primary-btn" onclick="init()">محاولة مرة أخرى</button>
+                    <button class="secondary-btn" onclick="window.location.reload()">إعادة تحميل الصفحة</button>
                 </div>
             `, 'error');
         }
@@ -776,6 +845,32 @@ function forgetWallet() {
     localStorage.removeItem('preferred_wallet');
     preferredWallet = null;
 
+    // إزالة معلومات العقد المحفوظة أيضًا لضمان إعادة الاتصال بشكل صحيح
+    localStorage.removeItem('fakeUSDT_contract_address');
+    localStorage.removeItem('fakeUSDT_contract_network');
+    savedContractAddress = null;
+    savedContractNetwork = null;
+
+    // قطع الاتصال بالمحفظة الحالية
+    if (provider && provider.provider && provider.provider.close) {
+        try {
+            provider.provider.close();
+        } catch (error) {
+            console.log("خطأ في إغلاق اتصال المزود:", error);
+        }
+    }
+
+    // إعادة تعيين المتغيرات العالمية
+    provider = null;
+    signer = null;
+    fakeUSDTContract = null;
+    fakeUSDTAddress = null;
+
+    // تعطيل الأزرار
+    deployBtn.disabled = true;
+    sendBtn.disabled = true;
+    multiSendBtn.disabled = true;
+
     // عرض رسالة للمستخدم
     updateNetworkStatus(`
         <div class="success">تم نسيان المحفظة المفضلة بنجاح</div>
@@ -783,10 +878,39 @@ function forgetWallet() {
             <button class="primary-btn" onclick="init()">عرض المحافظ المتاحة</button>
         </div>
     `, 'success');
+
+    // تحديث حالة المحفظة
+    updateWalletStatus('المحفظة: غير متصلة');
+
+    // إعادة تحميل الصفحة بعد ثانيتين لضمان إعادة تهيئة كاملة
+    setTimeout(() => {
+        window.location.reload();
+    }, 2000);
 }
 
 // دالة لتغيير المحفظة
 function changeWallet() {
+    // قطع الاتصال بالمحفظة الحالية أولاً
+    if (provider && provider.provider && provider.provider.close) {
+        try {
+            provider.provider.close();
+        } catch (error) {
+            console.log("خطأ في إغلاق اتصال المزود:", error);
+        }
+    }
+
+    // إعادة تعيين المتغيرات العالمية
+    provider = null;
+    signer = null;
+
+    // تعطيل الأزرار
+    deployBtn.disabled = true;
+    sendBtn.disabled = true;
+    multiSendBtn.disabled = true;
+
+    // تحديث حالة المحفظة
+    updateWalletStatus('المحفظة: غير متصلة');
+
     // عرض خيارات المحافظ المتاحة
     const providers = detectWalletProviders();
 
@@ -804,7 +928,23 @@ function changeWallet() {
         return;
     }
 
+    // إضافة رسالة توضيحية
+    updateNetworkStatus(`
+        <div class="info">يرجى اختيار المحفظة التي تريد استخدامها:</div>
+        <div class="warning" style="margin-top: 10px; margin-bottom: 10px;">
+            <strong>ملاحظة هامة:</strong> إذا كنت تواجه مشاكل في تغيير المحفظة، يرجى إعادة تحميل الصفحة أولاً.
+        </div>
+    `, 'info');
+
     showWalletOptions(providers, preferredWallet);
+
+    // إضافة زر لإعادة تحميل الصفحة
+    const reloadButton = document.createElement('button');
+    reloadButton.textContent = 'إعادة تحميل الصفحة';
+    reloadButton.className = 'secondary-btn';
+    reloadButton.style.marginTop = '15px';
+    reloadButton.onclick = () => window.location.reload();
+    networkStatus.appendChild(reloadButton);
 }
 
 // دالة الاتصال بالمحفظة (للتوافق مع الكود القديم)
@@ -881,17 +1021,46 @@ async function switchNetwork(networkId) {
     try {
         updateNetworkStatus(`جاري التبديل إلى شبكة: ${network.chainName}...`, 'info');
 
+        // التحقق من وجود مزود
+        if (!window.ethereum) {
+            throw new Error("لم يتم العثور على مزود المحفظة");
+        }
+
+        // التحقق من المزود المناسب في حالة وجود محافظ متعددة
+        let targetProvider = window.ethereum;
+
+        // إذا كان هناك محافظ متعددة، استخدم المزود المناسب
+        if (window.ethereum.providers) {
+            // استخدام المزود المرتبط بالمحفظة المفضلة إذا كان موجودًا
+            if (preferredWallet) {
+                for (const provider of window.ethereum.providers) {
+                    if ((preferredWallet === 'MetaMask' && provider.isMetaMask && !provider.isTrust && !provider.isTrustWallet) ||
+                        (preferredWallet === 'Trust Wallet' && (provider.isTrust || provider.isTrustWallet)) ||
+                        (preferredWallet === 'Coinbase Wallet' && (provider.isCoinbaseWallet || provider.isCoinbaseBrowser))) {
+                        targetProvider = provider;
+                        break;
+                    }
+                }
+            }
+        }
+
+        console.log("محاولة التبديل إلى الشبكة باستخدام المزود:", targetProvider);
+
         // محاولة التبديل إلى الشبكة
         try {
-            await window.ethereum.request({
+            await targetProvider.request({
                 method: 'wallet_switchEthereumChain',
                 params: [{ chainId: network.chainId }],
             });
+            console.log("تم طلب التبديل إلى الشبكة:", network.chainId);
         } catch (switchError) {
+            console.log("خطأ في التبديل إلى الشبكة:", switchError);
+
             // إذا كان الخطأ 4902، فهذا يعني أن الشبكة غير موجودة في المحفظة
             if (switchError.code === 4902) {
+                console.log("الشبكة غير موجودة، محاولة إضافتها...");
                 // إضافة الشبكة ثم التبديل إليها
-                await window.ethereum.request({
+                await targetProvider.request({
                     method: 'wallet_addEthereumChain',
                     params: [
                         {
@@ -903,23 +1072,130 @@ async function switchNetwork(networkId) {
                         }
                     ],
                 });
+                console.log("تم طلب إضافة الشبكة:", network.chainName);
             } else {
                 throw switchError;
             }
         }
 
+        // انتظار لحظة للتأكد من تطبيق التغييرات
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         // التحقق من أن التبديل تم بنجاح
-        const currentNetwork = await window.ethereum.request({ method: 'eth_chainId' });
+        const currentNetwork = await targetProvider.request({ method: 'eth_chainId' });
+        console.log("الشبكة الحالية بعد التبديل:", currentNetwork, "الشبكة المطلوبة:", network.chainId);
+
         if (currentNetwork.toLowerCase() !== network.chainId.toLowerCase()) {
-            throw new Error(`لم يتم التبديل إلى الشبكة المطلوبة. الشبكة الحالية: ${currentNetwork}`);
+            console.log("لم يتم التبديل إلى الشبكة المطلوبة");
+
+            // محاولة أخرى للتبديل
+            updateNetworkStatus(`
+                <div class="warning">لم يتم التبديل إلى الشبكة المطلوبة تلقائيًا.</div>
+                <div>يرجى التبديل يدويًا إلى شبكة ${network.chainName} من خلال محفظتك.</div>
+                <div style="margin-top: 10px;">
+                    <button class="primary-btn" onclick="checkNetworkAfterManualSwitch('${networkId}')">تم التبديل يدويًا</button>
+                </div>
+            `, 'warning');
+
+            return false;
         }
 
-        updateNetworkStatus(`تم التبديل إلى شبكة: ${network.chainName}`, 'success');
+        // تحديث المزود بعد تغيير الشبكة
+        provider = new ethers.providers.Web3Provider(targetProvider);
+        signer = provider.getSigner();
+
+        // تحديث الشبكة المحددة في واجهة المستخدم
+        selectedNetwork = networkId;
+        networkSelect.value = networkId;
+
+        updateNetworkStatus(`
+            <div class="success">تم التبديل إلى شبكة: ${network.chainName}</div>
+            <div style="margin-top: 10px;">
+                <button class="primary-btn" onclick="deployContract()">نشر العقد</button>
+            </div>
+        `, 'success');
+
         return true;
     } catch (error) {
-        console.error(error);
-        updateNetworkStatus(`خطأ في التبديل إلى شبكة ${network.chainName}: ${error.message}`, 'error');
+        console.error("خطأ في التبديل إلى الشبكة:", error);
+
+        // تحسين رسائل الخطأ
+        let errorMessage = error.message;
+        if (error.code === 4001) {
+            errorMessage = "تم رفض طلب تغيير الشبكة من قبل المستخدم";
+        } else if (error.code === 4902) {
+            errorMessage = "الشبكة غير موجودة في المحفظة";
+        }
+
+        updateNetworkStatus(`
+            <div class="error">خطأ في التبديل إلى شبكة ${network.chainName}:</div>
+            <div>${errorMessage}</div>
+            <div style="margin-top: 10px;">
+                <button class="primary-btn" onclick="switchNetwork('${networkId}')">محاولة مرة أخرى</button>
+                <button class="secondary-btn" onclick="window.location.reload()">إعادة تحميل الصفحة</button>
+            </div>
+        `, 'error');
+
         return false;
+    }
+}
+
+// دالة للتحقق من الشبكة بعد التبديل اليدوي
+async function checkNetworkAfterManualSwitch(networkId) {
+    try {
+        const network = NETWORKS[networkId];
+        if (!network) {
+            updateNetworkStatus(`خطأ: الشبكة غير مدعومة (${networkId})`, 'error');
+            return;
+        }
+
+        // إعادة تهيئة المزود
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+
+        // الحصول على معلومات الشبكة الحالية
+        const currentNetwork = await provider.getNetwork();
+        const currentNetworkInfo = getNetworkInfoByChainId(currentNetwork.chainId);
+
+        console.log("الشبكة الحالية بعد التبديل اليدوي:", currentNetwork);
+        console.log("معلومات الشبكة المستخرجة:", currentNetworkInfo);
+
+        if (currentNetworkInfo && currentNetworkInfo.id === networkId) {
+            // تم التبديل بنجاح
+            selectedNetwork = networkId;
+            networkSelect.value = networkId;
+
+            // الحصول على الموقع
+            signer = provider.getSigner();
+
+            updateNetworkStatus(`
+                <div class="success">تم التبديل إلى شبكة: ${network.chainName}</div>
+                <div style="margin-top: 10px;">
+                    <button class="primary-btn" onclick="deployContract()">نشر العقد</button>
+                </div>
+            `, 'success');
+
+            // تفعيل الأزرار
+            deployBtn.disabled = false;
+
+            // استعادة العقد المحفوظ إذا كان موجودًا
+            if (savedContractAddress && savedContractNetwork === networkId) {
+                console.log("محاولة استعادة العقد المحفوظ:", savedContractAddress, "على شبكة", savedContractNetwork);
+                await restoreSavedContract();
+            }
+        } else {
+            // لم يتم التبديل بنجاح
+            updateNetworkStatus(`
+                <div class="error">لم يتم التبديل إلى الشبكة المطلوبة.</div>
+                <div>الشبكة الحالية: ${currentNetworkInfo ? currentNetworkInfo.chainName : currentNetwork.name}</div>
+                <div>الشبكة المطلوبة: ${network.chainName}</div>
+                <div style="margin-top: 10px;">
+                    <button class="primary-btn" onclick="switchNetwork('${networkId}')">محاولة مرة أخرى</button>
+                </div>
+            `, 'error');
+        }
+    } catch (error) {
+        console.error("خطأ في التحقق من الشبكة:", error);
+        updateNetworkStatus(`خطأ في التحقق من الشبكة: ${error.message}`, 'error');
     }
 }
 
