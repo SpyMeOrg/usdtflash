@@ -1334,17 +1334,21 @@ async function deployContract() {
         let gasPrice, gasLimit;
 
         if (selectedNetworkInfo.id === 'bsc_testnet') {
-            // إعدادات خاصة لشبكة BSC Testnet
+            // إعدادات خاصة لشبكة BSC Testnet - زيادة حد الغاز بشكل كبير
+            gasPrice = ethers.utils.parseUnits('15', 'gwei');
+            gasLimit = 3000000; // زيادة حد الغاز إلى الضعف
+        } else if (selectedNetworkInfo.id === 'bsc') {
+            // إعدادات خاصة لشبكة BSC Mainnet - زيادة سعر الغاز وحد الغاز لضمان نجاح المعاملة
             gasPrice = ethers.utils.parseUnits('10', 'gwei');
-            gasLimit = 1500000;
-        } else if (selectedNetworkInfo.id === 'bsc_mainnet') {
-            // إعدادات خاصة لشبكة BSC Mainnet - زيادة سعر الغاز لضمان نجاح المعاملة
-            gasPrice = ethers.utils.parseUnits('5', 'gwei');
-            gasLimit = 1500000;
+            gasLimit = 3000000; // زيادة حد الغاز إلى الضعف
+        } else if (selectedNetworkInfo.id === 'sepolia') {
+            // إعدادات خاصة لشبكة Sepolia
+            gasPrice = ethers.utils.parseUnits('20', 'gwei');
+            gasLimit = 3000000; // زيادة حد الغاز إلى الضعف
         } else {
-            // إعدادات افتراضية للشبكات الأخرى
-            gasPrice = selectedNetworkInfo.gasPrice || ethers.utils.parseUnits('10', 'gwei');
-            gasLimit = 1500000;
+            // إعدادات افتراضية للشبكات الأخرى - زيادة حد الغاز بشكل كبير
+            gasPrice = selectedNetworkInfo.gasPrice ? ethers.BigNumber.from(selectedNetworkInfo.gasPrice).mul(2) : ethers.utils.parseUnits('20', 'gwei');
+            gasLimit = 3000000; // زيادة حد الغاز إلى الضعف
         }
 
         // محاولة الحصول على سعر الغاز المقترح من الشبكة
@@ -1381,25 +1385,57 @@ async function deployContract() {
             const estimatedGas = await factory.estimateGas.deploy();
             console.log("الغاز المقدر:", estimatedGas.toString());
 
-            // استخدام الغاز المقدر + هامش أمان
-            gasLimit = estimatedGas.mul(120).div(100); // إضافة 20% كهامش أمان
-            console.log("حد الغاز النهائي (بعد التقدير):", gasLimit.toString());
+            // استخدام الغاز المقدر + هامش أمان كبير (50%)
+            const calculatedGasLimit = estimatedGas.mul(150).div(100); // إضافة 50% كهامش أمان
+            console.log("حد الغاز المحسوب (بعد التقدير):", calculatedGasLimit.toString());
+
+            // استخدام القيمة الأكبر بين حد الغاز المحسوب والقيمة الافتراضية
+            if (calculatedGasLimit.gt(ethers.BigNumber.from(gasLimit))) {
+                gasLimit = calculatedGasLimit;
+                console.log("استخدام حد الغاز المحسوب لأنه أكبر:", gasLimit.toString());
+            } else {
+                console.log("استخدام حد الغاز الافتراضي لأنه أكبر:", gasLimit.toString());
+            }
         } catch (error) {
             console.log("فشل تقدير الغاز:", error.message);
+            console.log("استخدام حد الغاز الافتراضي:", gasLimit.toString());
             // الاستمرار باستخدام القيمة الافتراضية
         }
 
+        // تحديث واجهة المستخدم بالقيم النهائية
+        updateDeployResult(`
+            <div>جاري نشر العقد على شبكة ${selectedNetworkInfo.chainName}...</div>
+            <div>سعر الغاز النهائي: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei</div>
+            <div>حد الغاز النهائي: ${gasLimit.toString()}</div>
+            <div class="info" style="margin-top: 10px;">
+                يرجى الموافقة على المعاملة في نافذة المحفظة التي ستظهر.
+                <br>
+                تأكد من وجود رصيد كافٍ من ${selectedNetworkInfo.nativeCurrency.symbol} في محفظتك.
+            </div>
+        `);
+
         // نشر العقد بطريقة أكثر موثوقية
-        console.log("بدء نشر العقد...");
+        console.log("بدء نشر العقد مع الإعدادات النهائية:");
+        console.log("- سعر الغاز النهائي:", ethers.utils.formatUnits(gasPrice, 'gwei'), "gwei");
+        console.log("- حد الغاز النهائي:", gasLimit.toString());
 
-        // إنشاء بيانات نشر العقد
-        const deployTransaction = factory.getDeployTransaction({
+        // إنشاء بيانات نشر العقد مع إعدادات محسنة
+        const deployTransaction = factory.getDeployTransaction();
+
+        // تعديل خيارات المعاملة
+        const txOptions = {
             gasPrice: gasPrice,
-            gasLimit: gasLimit
-        });
+            gasLimit: gasLimit,
+            nonce: await provider.getTransactionCount(await signer.getAddress(), "latest")
+        };
 
-        // إرسال المعاملة مباشرة
-        const tx = await signer.sendTransaction(deployTransaction);
+        console.log("خيارات المعاملة:", txOptions);
+
+        // إرسال المعاملة مباشرة مع الخيارات المحسنة
+        const tx = await signer.sendTransaction({
+            ...deployTransaction,
+            ...txOptions
+        });
         console.log("تم إرسال معاملة نشر العقد:", tx.hash);
 
         // انتظار تأكيد المعاملة
@@ -1646,11 +1682,59 @@ async function sendTokens() {
             console.log("سعر الغاز:", ethers.utils.formatUnits(gasPrice, 'gwei'), "gwei");
             console.log("حد الغاز:", 1500000);
 
-            // إرسال المعاملة مع إعدادات محسنة
-            tx = await fakeUSDTContract.mint(recipient, tokenAmountWei, {
+            // تحديد حد الغاز المناسب بناءً على الشبكة
+            let gasLimit;
+            if (contractNetworkInfo.id === 'bsc_testnet') {
+                gasLimit = 3000000; // زيادة حد الغاز بشكل كبير لشبكة BSC Testnet
+            } else if (contractNetworkInfo.id === 'bsc') {
+                gasLimit = 3000000; // زيادة حد الغاز بشكل كبير لشبكة BSC
+            } else if (contractNetworkInfo.id === 'sepolia') {
+                gasLimit = 3000000; // زيادة حد الغاز بشكل كبير لشبكة Sepolia
+            } else {
+                gasLimit = 3000000; // زيادة حد الغاز بشكل كبير للشبكات الأخرى
+            }
+
+            console.log("حد الغاز المستخدم:", gasLimit);
+
+            // محاولة تقدير الغاز المطلوب
+            try {
+                const estimatedGas = await fakeUSDTContract.estimateGas.mint(recipient, tokenAmountWei);
+                console.log("الغاز المقدر لإرسال التوكنات:", estimatedGas.toString());
+
+                // استخدام الغاز المقدر + هامش أمان كبير (50%)
+                const calculatedGasLimit = estimatedGas.mul(150).div(100);
+                console.log("حد الغاز المحسوب (بعد التقدير):", calculatedGasLimit.toString());
+
+                // استخدام القيمة الأكبر بين حد الغاز المحسوب والقيمة الافتراضية
+                if (calculatedGasLimit.gt(ethers.BigNumber.from(gasLimit))) {
+                    gasLimit = calculatedGasLimit;
+                    console.log("استخدام حد الغاز المحسوب لأنه أكبر:", gasLimit.toString());
+                }
+            } catch (error) {
+                console.log("فشل تقدير الغاز:", error.message);
+                // الاستمرار باستخدام القيمة الافتراضية
+            }
+
+            // تحديث واجهة المستخدم
+            updateSendResult(`
+                <div>جاري إرسال ${amount} USDT إلى ${formatAddress(recipient)}...</div>
+                <div>الشبكة: ${contractNetworkInfo.chainName}</div>
+                <div>سعر الغاز: ${ethers.utils.formatUnits(gasPrice, 'gwei')} gwei</div>
+                <div>حد الغاز: ${gasLimit.toString()}</div>
+                <div class="warning">يرجى الموافقة على المعاملة في محفظتك...</div>
+            `);
+
+            // إنشاء خيارات المعاملة
+            const txOptions = {
                 gasPrice: gasPrice,
-                gasLimit: 1500000 // زيادة حد الغاز لضمان نجاح المعاملة
-            });
+                gasLimit: gasLimit,
+                nonce: await provider.getTransactionCount(await signer.getAddress(), "latest")
+            };
+
+            console.log("خيارات المعاملة:", txOptions);
+
+            // إرسال المعاملة مع إعدادات محسنة
+            tx = await fakeUSDTContract.mint(recipient, tokenAmountWei, txOptions);
 
             updateSendResult(`
                 <div>تم إرسال المعاملة، جاري انتظار التأكيد...</div>
